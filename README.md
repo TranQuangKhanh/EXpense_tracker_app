@@ -1,17 +1,35 @@
-# expense_tracker
+# Expense Tracker App
 
-A new Flutter project.
+Ứng dụng quản lý chi tiêu cá nhân với tính năng
+tự động nhận giao dịch từ thông báo ngân hàng.
 
-## Getting Started
+## Tính năng chính
 
-This project is a starting point for a Flutter application.
+- Thu/chi cá nhân theo danh mục
+- Tự động ghi nhận giao dịch từ ngân hàng/ví điện tử
+- Thống kê theo tháng
+- Quản lý nhiều nguồn tiền
+- Nhóm chi tiêu chung
+- Đăng nhập lại bằng số điện thoại
 
-A few resources to get you started if this is your first Flutter project:
+## Ngân hàng hỗ trợ
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+MoMo, Vietcombank, MBBank, Techcombank, BIDV,
+Agribank, TPBank, VPBank, ACB, Sacombank,
+Vietinbank, SHB, ZaloPay, ShopeePay, VNPay,
+GrabPay, ViettelPay
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Setup
+
+1. Clone repo
+2. Tạo Firebase project
+3. Thêm `google-services.json` vào `android/app/`
+4. Tạo `lib/firebase_options.dart`
+5. `flutter pub get`
+6. `cd android && gradlew assembleDebug`
+
+## Tech stack
+
+- Flutter + Dart
+- Firebase (Firestore, Auth)
+- Kotlin (NotificationListenerService)
