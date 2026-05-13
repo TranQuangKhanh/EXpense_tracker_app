@@ -68,9 +68,11 @@ class _ProfileScreenState
                 ),
                 child: Row(
                   children: [
-                    const Text('💡',
-                        style:
-                            TextStyle(fontSize: 14)),
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(
                         width: AppSpacing.xs),
                     Expanded(
@@ -119,12 +121,10 @@ class _ProfileScreenState
 
   void _showAddCategoryDialog() {
     final nameController = TextEditingController();
-    String selectedEmoji = '⭐';
-    final emojis = [
-      '⭐', '🎯', '🎨', '🎸', '🏋️', '🌿',
-      '🐾', '💎', '🚀', '🎭', '🍜', '🎪',
-      '🦋', '🌊', '🏔️', '🎃'
-    ];
+    // ← Dùng AppCategoryEmojis.list
+    String selectedEmoji =
+        AppCategoryEmojis.list.first;
+    final emojis = AppCategoryEmojis.list;
 
     showModalBottomSheet(
       context: context,
@@ -146,14 +146,16 @@ class _ProfileScreenState
           right: AppSpacing.md,
         ),
         child: StatefulBuilder(
-          builder: (context, setModalState) => Column(
+          builder: (context, setModalState) =>
+              Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
-              Row(children: const [
-                Text('✨',
-                    style: TextStyle(fontSize: 24)),
+              const Row(children: [
+                Icon(Icons.category_rounded,
+                    color: AppColors.primary,
+                    size: 24),
                 SizedBox(width: AppSpacing.sm),
                 Text('Tạo danh mục mới',
                     style: AppTextStyles.heading3),
@@ -162,43 +164,53 @@ class _ProfileScreenState
               const Text('Chọn biểu tượng',
                   style: AppTextStyles.bodySmall),
               const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: emojis.map((emoji) {
-                  final isSelected =
-                      selectedEmoji == emoji;
-                  return GestureDetector(
-                    onTap: () => setModalState(
-                        () => selectedEmoji = emoji),
-                    child: AnimatedContainer(
-                      duration: const Duration(
-                          milliseconds: 150),
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primaryLight
-                            : AppColors.background,
-                        borderRadius:
-                            BorderRadius.circular(
-                                AppRadius.md),
-                        border: Border.all(
+
+              // ← GridView có scroll
+              SizedBox(
+                height: 200,
+                child: GridView.builder(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: AppSpacing.xs,
+                    mainAxisSpacing: AppSpacing.xs,
+                  ),
+                  itemCount: emojis.length,
+                  itemBuilder: (context, index) {
+                    final emoji = emojis[index];
+                    final isSelected =
+                        selectedEmoji == emoji;
+                    return GestureDetector(
+                      onTap: () => setModalState(
+                          () => selectedEmoji = emoji),
+                      child: AnimatedContainer(
+                        duration: const Duration(
+                            milliseconds: 150),
+                        decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.primary
-                              : Colors.transparent,
-                          width: 2,
+                              ? AppColors.primaryLight
+                              : AppColors.background,
+                          borderRadius:
+                              BorderRadius.circular(
+                                  AppRadius.md),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(emoji,
+                              style: const TextStyle(
+                                  fontSize: 22)),
                         ),
                       ),
-                      child: Center(
-                        child: Text(emoji,
-                            style: const TextStyle(
-                                fontSize: 24)),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  },
+                ),
               ),
+
               const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: nameController,
@@ -226,8 +238,8 @@ class _ProfileScreenState
                     ScaffoldMessenger.of(context)
                         .showSnackBar(
                       const SnackBar(
-                        content: Text(
-                            '✅ Đã tạo danh mục mới!'),
+                        content:
+                            Text('Đã tạo danh mục mới'),
                       ),
                     );
                   },
@@ -251,8 +263,9 @@ class _ProfileScreenState
           borderRadius:
               BorderRadius.circular(AppRadius.xl),
         ),
-        title: Row(children: const [
-          Text('📱', style: TextStyle(fontSize: 24)),
+        title: const Row(children: [
+          Icon(Icons.phone_rounded,
+              color: AppColors.primary, size: 24),
           SizedBox(width: AppSpacing.sm),
           Text('Số điện thoại'),
         ]),
@@ -285,8 +298,8 @@ class _ProfileScreenState
                 ScaffoldMessenger.of(context)
                     .showSnackBar(
                   const SnackBar(
-                      content: Text(
-                          '✅ Đã cập nhật SĐT!')),
+                      content:
+                          Text('Đã cập nhật SĐT')),
                 );
               } else {
                 ScaffoldMessenger.of(context)
@@ -302,7 +315,6 @@ class _ProfileScreenState
     );
   }
 
-  // ── Hướng dẫn hoạt động nền ──────────────────
   void _showBatteryGuide() {
     showModalBottomSheet(
       context: context,
@@ -324,9 +336,9 @@ class _ProfileScreenState
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
-            Row(children: const [
-              Text('⚡',
-                  style: TextStyle(fontSize: 24)),
+            const Row(children: [
+              Icon(Icons.battery_saver_rounded,
+                  color: AppColors.primary, size: 24),
               SizedBox(width: AppSpacing.sm),
               Text('Tối ưu hoạt động nền',
                   style: AppTextStyles.heading3),
@@ -342,39 +354,36 @@ class _ProfileScreenState
                 child: Column(
                   children: [
                     _buildGuideCard(
-                      emoji: '📱',
                       brand:
                           'Xiaomi / Redmi / POCO (HyperOS/MIUI)',
                       steps: [
                         'Cài đặt → Ứng dụng → Quản lý ứng dụng',
                         'Tìm "Quản Lý Chi Tiêu"',
-                        'Tự khởi động → BẬT ✅',
-                        'Tiết kiệm pin → Không hạn chế ✅',
-                        'Vào Quyền → Quyền truy cập thông báo → BẬT ✅',
+                        'Tự khởi động → BẬT',
+                        'Tiết kiệm pin → Không hạn chế',
+                        'Quyền → Quyền truy cập thông báo → BẬT',
                       ],
                       color: AppColors.expense,
                     ),
                     const SizedBox(
                         height: AppSpacing.sm),
                     _buildGuideCard(
-                      emoji: '📲',
                       brand: 'Samsung (OneUI)',
                       steps: [
                         'Cài đặt → Bảo trì thiết bị → Pin',
                         'Ứng dụng ở chế độ ngủ',
-                        'Xoá "Quản Lý Chi Tiêu" khỏi danh sách ngủ',
+                        'Xoá "Quản Lý Chi Tiêu" khỏi danh sách',
                       ],
                       color: AppColors.primary,
                     ),
                     const SizedBox(
                         height: AppSpacing.sm),
                     _buildGuideCard(
-                      emoji: '🔋',
                       brand: 'Oppo / Vivo / Realme',
                       steps: [
                         'Cài đặt → Quản lý ứng dụng',
                         '"Quản Lý Chi Tiêu" → Tự chạy nền',
-                        'Bật "Cho phép chạy nền" ✅',
+                        'Bật "Cho phép chạy nền"',
                       ],
                       color: AppColors.income,
                     ),
@@ -423,7 +432,6 @@ class _ProfileScreenState
   }
 
   Widget _buildGuideCard({
-    required String emoji,
     required String brand,
     required List<String> steps,
     required Color color,
@@ -440,21 +448,14 @@ class _ProfileScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Text(emoji,
-                style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                brand,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                  fontSize: 13,
-                ),
-              ),
+          Text(
+            brand,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: color,
+              fontSize: 13,
             ),
-          ]),
+          ),
           const SizedBox(height: AppSpacing.xs),
           ...steps.asMap().entries.map(
             (e) => Padding(
@@ -577,7 +578,7 @@ class _ProfileScreenState
           child: Column(
             children: [
               _buildInfoTile(
-                emoji: '🏷️',
+                icon: Icons.tag_rounded,
                 title: 'Mã ID',
                 trailing: Text(
                   '#${_user!.code}',
@@ -590,7 +591,7 @@ class _ProfileScreenState
               ),
               const Divider(height: 1, indent: 64),
               _buildInfoTile(
-                emoji: '📱',
+                icon: Icons.phone_rounded,
                 title: 'Số điện thoại',
                 trailing: GestureDetector(
                   onTap: _showAddPhoneDialog,
@@ -613,7 +614,7 @@ class _ProfileScreenState
 
         const SizedBox(height: AppSpacing.lg),
 
-        // ── Nguồn tiền + SĐT ──
+        // ── Nguồn tiền ──
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -639,10 +640,10 @@ class _ProfileScreenState
                         BorderRadius.circular(
                             AppRadius.md),
                   ),
-                  child: const Center(
-                    child: Text('👛',
-                        style:
-                            TextStyle(fontSize: 20)),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: AppColors.primary,
+                    size: 20,
                   ),
                 ),
                 title: const Text('Nguồn tiền',
@@ -673,10 +674,10 @@ class _ProfileScreenState
                           BorderRadius.circular(
                               AppRadius.md),
                     ),
-                    child: const Center(
-                      child: Text('📱',
-                          style: TextStyle(
-                              fontSize: 20)),
+                    child: const Icon(
+                      Icons.phone_rounded,
+                      color: AppColors.expense,
+                      size: 20,
                     ),
                   ),
                   title: const Text(
@@ -722,9 +723,10 @@ class _ProfileScreenState
                 borderRadius:
                     BorderRadius.circular(AppRadius.md),
               ),
-              child: const Center(
-                child: Text('⚡',
-                    style: TextStyle(fontSize: 20)),
+              child: const Icon(
+                Icons.battery_saver_rounded,
+                color: AppColors.expense,
+                size: 20,
               ),
             ),
             title: const Text('Hoạt động nền',
@@ -747,13 +749,8 @@ class _ProfileScreenState
           mainAxisAlignment:
               MainAxisAlignment.spaceBetween,
           children: [
-            Row(children: const [
-              Text('✨',
-                  style: TextStyle(fontSize: 20)),
-              SizedBox(width: AppSpacing.sm),
-              Text('Danh mục của tôi',
-                  style: AppTextStyles.heading3),
-            ]),
+            const Text('Danh mục của tôi',
+                style: AppTextStyles.heading3),
             GestureDetector(
               onTap: _showAddCategoryDialog,
               child: Container(
@@ -805,12 +802,14 @@ class _ProfileScreenState
                   border: Border.all(
                       color: AppColors.divider),
                 ),
-                child: Center(
+                child: const Center(
                   child: Column(
-                    children: const [
-                      Text('🐇',
-                          style: TextStyle(
-                              fontSize: 36)),
+                    children: [
+                      Icon(
+                        Icons.category_outlined,
+                        size: 40,
+                        color: AppColors.primary,
+                      ),
                       SizedBox(height: AppSpacing.sm),
                       Text(
                         'Chưa có danh mục nào\nNhấn Thêm để tạo mới',
@@ -899,7 +898,8 @@ class _ProfileScreenState
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.expense,
             side: BorderSide(
-                color: AppColors.expense.withOpacity(0.5)),
+                color:
+                    AppColors.expense.withOpacity(0.5)),
             padding: const EdgeInsets.symmetric(
                 vertical: AppSpacing.md),
           ),
@@ -911,7 +911,7 @@ class _ProfileScreenState
   }
 
   Widget _buildInfoTile({
-    required String emoji,
+    required IconData icon,
     required String title,
     required Widget trailing,
   }) {
@@ -930,10 +930,8 @@ class _ProfileScreenState
               borderRadius:
                   BorderRadius.circular(AppRadius.md),
             ),
-            child: Center(
-              child: Text(emoji,
-                  style: const TextStyle(fontSize: 20)),
-            ),
+            child: Icon(icon,
+                color: AppColors.primary, size: 20),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

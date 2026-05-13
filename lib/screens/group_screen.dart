@@ -14,7 +14,8 @@ class GroupScreen extends StatefulWidget {
   const GroupScreen({super.key});
 
   @override
-  State<GroupScreen> createState() => _GroupScreenState();
+  State<GroupScreen> createState() =>
+      _GroupScreenState();
 }
 
 class _GroupScreenState extends State<GroupScreen> {
@@ -33,12 +34,9 @@ class _GroupScreenState extends State<GroupScreen> {
 
   void _showCreateGroupDialog() {
     final nameController = TextEditingController();
-    String selectedEmoji = '👨‍👩‍👧‍👦';
-    final emojis = [
-      '👨‍👩‍👧‍👦', '👫', '👬', '👭', '🏠', '💼',
-      '🎮', '✈️', '🦊', '🦌', '🐇', '🦉',
-      '🌊', '🏔️', '🎯', '⭐'
-    ];
+    // ← Dùng AppGroupEmojis.list
+    String selectedEmoji = AppGroupEmojis.list.first;
+    final emojis = AppGroupEmojis.list;
 
     showModalBottomSheet(
       context: context,
@@ -52,8 +50,9 @@ class _GroupScreenState extends State<GroupScreen> {
           ),
         ),
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom +
-              AppSpacing.md,
+          bottom:
+              MediaQuery.of(context).viewInsets.bottom +
+                  AppSpacing.md,
           top: AppSpacing.lg,
           left: AppSpacing.md,
           right: AppSpacing.md,
@@ -61,11 +60,12 @@ class _GroupScreenState extends State<GroupScreen> {
         child: StatefulBuilder(
           builder: (context, setModalState) => Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
-              Row(children: const [
-                Text('💬',
-                    style: TextStyle(fontSize: 24)),
+              const Row(children: [
+                Icon(Icons.group_rounded,
+                    color: AppColors.primary, size: 24),
                 SizedBox(width: AppSpacing.sm),
                 Text('Tạo nhóm mới',
                     style: AppTextStyles.heading3),
@@ -74,41 +74,53 @@ class _GroupScreenState extends State<GroupScreen> {
               const Text('Chọn biểu tượng',
                   style: AppTextStyles.bodySmall),
               const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: emojis.map((emoji) {
-                  final isSelected = selectedEmoji == emoji;
-                  return GestureDetector(
-                    onTap: () => setModalState(
-                        () => selectedEmoji = emoji),
-                    child: AnimatedContainer(
-                      duration:
-                          const Duration(milliseconds: 150),
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primaryLight
-                            : AppColors.background,
-                        borderRadius:
-                            BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
+
+              // ← GridView có scroll
+              SizedBox(
+                height: 200,
+                child: GridView.builder(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: AppSpacing.xs,
+                    mainAxisSpacing: AppSpacing.xs,
+                  ),
+                  itemCount: emojis.length,
+                  itemBuilder: (context, index) {
+                    final emoji = emojis[index];
+                    final isSelected =
+                        selectedEmoji == emoji;
+                    return GestureDetector(
+                      onTap: () => setModalState(
+                          () => selectedEmoji = emoji),
+                      child: AnimatedContainer(
+                        duration: const Duration(
+                            milliseconds: 150),
+                        decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.primary
-                              : Colors.transparent,
-                          width: 2,
+                              ? AppColors.primaryLight
+                              : AppColors.background,
+                          borderRadius:
+                              BorderRadius.circular(
+                                  AppRadius.md),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(emoji,
+                              style: const TextStyle(
+                                  fontSize: 22)),
                         ),
                       ),
-                      child: Center(
-                        child: Text(emoji,
-                            style:
-                                const TextStyle(fontSize: 24)),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  },
+                ),
               ),
+
               const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: nameController,
@@ -124,8 +136,9 @@ class _GroupScreenState extends State<GroupScreen> {
                 isLoading: false,
                 icon: Icons.add_rounded,
                 onPressed: () async {
-                  if (nameController.text.trim().isEmpty)
-                    return;
+                  if (nameController.text
+                      .trim()
+                      .isEmpty) return;
                   final group =
                       await GroupService.createGroup(
                     name: nameController.text.trim(),
@@ -138,7 +151,8 @@ class _GroupScreenState extends State<GroupScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) =>
-                            GroupDetailScreen(group: group),
+                            GroupDetailScreen(
+                                group: group),
                       ),
                     );
                   }
@@ -185,6 +199,7 @@ class _GroupScreenState extends State<GroupScreen> {
 
           if (groups.isEmpty) {
             return EmptyState(
+              icon: Icons.group_outlined,
               title: 'Chưa có nhóm nào',
               subtitle:
                   'Tạo nhóm để chat và chia tiền cùng nhau',
@@ -194,7 +209,8 @@ class _GroupScreenState extends State<GroupScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding:
+                const EdgeInsets.all(AppSpacing.md),
             itemCount: groups.length,
             itemBuilder: (context, index) {
               final group = groups[index];
@@ -221,17 +237,19 @@ class _GroupScreenState extends State<GroupScreen> {
     );
   }
 
-  Widget _buildGroupItem(GroupModel group, String userId) {
+  Widget _buildGroupItem(
+      GroupModel group, String userId) {
     return StreamBuilder<int>(
-      stream: GroupService.getUnreadCount(group.id, userId),
+      stream:
+          GroupService.getUnreadCount(group.id, userId),
       builder: (context, unreadSnap) {
         final unreadCount = unreadSnap.data ?? 0;
         final hasUnread = unreadCount > 0;
 
         return GestureDetector(
           onTap: () async {
-            // Đánh dấu đã đọc khi mở nhóm
-            await GroupService.markAsRead(group.id, userId);
+            await GroupService.markAsRead(
+                group.id, userId);
             if (!mounted) return;
             Navigator.push(
               context,
@@ -253,8 +271,8 @@ class _GroupScreenState extends State<GroupScreen> {
                   BorderRadius.circular(AppRadius.xl),
               border: hasUnread
                   ? Border.all(
-                      color:
-                          AppColors.primary.withOpacity(0.3),
+                      color: AppColors.primary
+                          .withOpacity(0.3),
                       width: 1.5,
                     )
                   : null,
@@ -268,18 +286,20 @@ class _GroupScreenState extends State<GroupScreen> {
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding:
+                  const EdgeInsets.all(AppSpacing.md),
               child: Row(
                 children: [
-                  // Avatar nhóm
                   Stack(
                     children: [
                       Container(
                         width: 52,
                         height: 52,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: AppColors.gradientSky,
+                          gradient:
+                              const LinearGradient(
+                            colors:
+                                AppColors.gradientSky,
                           ),
                           borderRadius:
                               BorderRadius.circular(
@@ -291,7 +311,6 @@ class _GroupScreenState extends State<GroupScreen> {
                                   fontSize: 26)),
                         ),
                       ),
-                      // Chấm xanh unread
                       if (hasUnread)
                         Positioned(
                           right: 0,
@@ -327,16 +346,15 @@ class _GroupScreenState extends State<GroupScreen> {
 
                   const SizedBox(width: AppSpacing.md),
 
-                  // Nội dung
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
                       children: [
-                        // Tên nhóm + thời gian
                         Row(
                           mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
+                              MainAxisAlignment
+                                  .spaceBetween,
                           children: [
                             Text(
                               group.name,
@@ -345,7 +363,8 @@ class _GroupScreenState extends State<GroupScreen> {
                                     ? FontWeight.w800
                                     : FontWeight.w600,
                                 fontSize: 15,
-                                color: AppColors.textPrimary,
+                                color:
+                                    AppColors.textPrimary,
                               ),
                             ),
                             Text(
@@ -355,7 +374,8 @@ class _GroupScreenState extends State<GroupScreen> {
                                 fontSize: 11,
                                 color: hasUnread
                                     ? AppColors.primary
-                                    : AppColors.textSecondary,
+                                    : AppColors
+                                        .textSecondary,
                                 fontWeight: hasUnread
                                     ? FontWeight.w700
                                     : FontWeight.w400,
@@ -363,10 +383,7 @@ class _GroupScreenState extends State<GroupScreen> {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 3),
-
-                        // Tin nhắn cuối
                         Row(
                           children: [
                             Expanded(
@@ -377,7 +394,8 @@ class _GroupScreenState extends State<GroupScreen> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: hasUnread
-                                      ? AppColors.textPrimary
+                                      ? AppColors
+                                          .textPrimary
                                       : AppColors
                                           .textSecondary,
                                   fontWeight: hasUnread
@@ -391,11 +409,13 @@ class _GroupScreenState extends State<GroupScreen> {
                             ),
                             if (hasUnread)
                               Container(
-                                margin: const EdgeInsets
-                                    .only(left: 4),
+                                margin:
+                                    const EdgeInsets.only(
+                                        left: 4),
                                 width: 8,
                                 height: 8,
-                                decoration: const BoxDecoration(
+                                decoration:
+                                    const BoxDecoration(
                                   color: AppColors.primary,
                                   shape: BoxShape.circle,
                                 ),
