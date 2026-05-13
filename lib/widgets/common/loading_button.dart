@@ -27,19 +27,20 @@ class LoadingButton extends StatelessWidget {
           backgroundColor: color ?? AppColors.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md,
-          ),
+              vertical: AppSpacing.md),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
           ),
+          elevation: 0,
         ),
+        // ← Dùng spinner đơn giản thay SkyLoader để tránh overflow
         child: isLoading
             ? const SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
                   color: Colors.white,
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 ),
               )
             : Row(
@@ -53,7 +54,7 @@ class LoadingButton extends StatelessWidget {
                     label,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

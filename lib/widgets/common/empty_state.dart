@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 
 class EmptyState extends StatelessWidget {
-  final String emoji;
+  final String? emoji;        // ← optional
+  final IconData? icon;       // ← hoặc dùng icon
   final String title;
   final String subtitle;
   final String? buttonLabel;
@@ -10,7 +11,8 @@ class EmptyState extends StatelessWidget {
 
   const EmptyState({
     super.key,
-    required this.emoji,
+    this.emoji,               // ← không bắt buộc nữa
+    this.icon,
     required this.title,
     required this.subtitle,
     this.buttonLabel,
@@ -25,7 +27,25 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 64)),
+            // Hiện emoji nếu có, icon nếu có,
+            // không thì hiện icon mặc định
+            if (emoji != null)
+              Text(emoji!,
+                  style: const TextStyle(fontSize: 64))
+            else
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon ?? Icons.inbox_rounded,
+                  size: 40,
+                  color: AppColors.primary,
+                ),
+              ),
             const SizedBox(height: AppSpacing.md),
             Text(title, style: AppTextStyles.heading3),
             const SizedBox(height: AppSpacing.sm),
@@ -34,7 +54,8 @@ class EmptyState extends StatelessWidget {
               style: AppTextStyles.bodySmall,
               textAlign: TextAlign.center,
             ),
-            if (buttonLabel != null && onButtonPressed != null) ...[
+            if (buttonLabel != null &&
+                onButtonPressed != null) ...[
               const SizedBox(height: AppSpacing.lg),
               ElevatedButton(
                 onPressed: onButtonPressed,
