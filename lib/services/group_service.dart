@@ -7,7 +7,6 @@ import 'user_service.dart';
 class GroupService {
   static final _firestore = FirebaseFirestore.instance;
 
-  // Tạo nhóm mới
   static Future<GroupModel?> createGroup({
     required String name,
     required String emoji,
@@ -25,7 +24,10 @@ class GroupService {
         createdAt: DateTime.now(),
       );
 
-      final doc = await _firestore.collection('groups').add(group.toMap());
+      final doc = await _firestore
+          .collection('groups')
+          .add(group.toMap());
+
       return GroupModel(
         id: doc.id,
         name: group.name,
@@ -40,19 +42,30 @@ class GroupService {
     }
   }
 
-  // Lấy danh sách nhóm của user
-  static Stream<List<GroupModel>> getUserGroups(String userId) {
+  static Stream<List<GroupModel>> getUserGroups(
+      String userId) {
     return _firestore
         .collection('groups')
         .where('memberIds', arrayContains: userId)
         .snapshots()
-        .map((snap) => snap.docs.map(GroupModel.fromDoc).toList());
+        .map((snap) =>
+            snap.docs.map(GroupModel.fromDoc).toList()
+              ..sort((a, b) {
+                final aTime =
+                    a.lastMessageAt ?? a.createdAt;
+                final bTime =
+                    b.lastMessageAt ?? b.createdAt;
+                return bTime.compareTo(aTime);
+              }));
   }
 
-  // Thêm thành viên vào nhóm
-  static Future<bool> addMember(String groupId, String userId) async {
+  static Future<bool> addMember(
+      String groupId, String userId) async {
     try {
-      await _firestore.collection('groups').doc(groupId).update({
+      await _firestore
+          .collection('groups')
+          .doc(groupId)
+          .update({
         'memberIds': FieldValue.arrayUnion([userId]),
       });
       return true;
@@ -62,20 +75,21 @@ class GroupService {
     }
   }
 
-  // Lấy notes của nhóm
-  static Stream<List<NoteModel>> getGroupNotes(String groupId) {
+  static Stream<List<NoteModel>> getGroupNotes(
+      String groupId) {
     return _firestore
         .collection('notes')
         .where('groupId', isEqualTo: groupId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map(NoteModel.fromDoc).toList());
+        .map((snap) =>
+            snap.docs.map(NoteModel.fromDoc).toList());
   }
 
-  // Thêm note
   static Future<bool> addNote({
     required String groupId,
     required String content,
+    String type = 'text',
   }) async {
     try {
       final user = await UserService.getCurrentUser();
@@ -90,11 +104,76 @@ class GroupService {
         creatorAvatar: user.avatar,
       );
 
-      await _firestore.collection('notes').add(note.toMap());
+      await _firestore.collection('notes').add({
+        ...note.toMap(),
+        'type': type,
+      });
+
+      // ← QUAN TRỌNG: lưu userId (không phải displayName)
+      // để check badge đỏ chính xác
+      await _firestore
+          .collection('groups')
+          .doc(groupId)
+          .update({
+        'lastMessage': content,
+        'lastMessageAt': FieldValue.serverTimestamp(),
+        'lastMessageSenderId': user.id, // ← userId
+        'lastMessageSender': user.displayName, // hiển thị
+      });
+
+      // Đánh dấu đã đọc cho người gửi
+      await markAsRead(groupId, user.id);
+
       return true;
     } catch (e) {
       debugPrint('Lỗi thêm note: $e');
       return false;
     }
+  }
+
+  static Future<void> markAsRead(
+      String groupId, String userId) async {
+    try {
+      await _firestore
+          .collection('group_read_status')
+          .doc('${groupId}_$userId')
+          .set({
+        'groupId': groupId,
+        'userId': userId,
+        'lastReadAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Lỗi mark read: $e');
+    }
+  }
+
+  static Stream<int> getUnreadCount(
+      String groupId, String userId) {
+    return _firestore
+        .collection('group_read_status')
+        .doc('${groupId}_$userId')
+        .snapshots()
+        .asyncMap((readDoc) async {
+      DateTime? lastReadAt;
+      if (readDoc.exists) {
+        lastReadAt =
+            (readDoc.data()?['lastReadAt'] as Timestamp?)
+                ?.toDate();
+      }
+
+      Query query = _firestore
+          .collection('notes')
+          .where('groupId', isEqualTo: groupId)
+          .where('createdBy', isNotEqualTo: userId);
+
+      if (lastReadAt != null) {
+        query = query.where('createdAt',
+            isGreaterThan:
+                Timestamp.fromDate(lastReadAt));
+      }
+
+      final snap = await query.get();
+      return snap.docs.length;
+    });
   }
 }
