@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'screens/onboarding_screen.dart';
@@ -11,21 +13,16 @@ import 'core/constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 1. Khởi tạo Firebase với cấu hình từ firebase_options.dart
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 2. Cấu hình Firestore Persistence (Lưu trữ ngoại tuyến)
-  // Giúp app không mất dữ liệu nếu nhận thông báo lúc máy không có mạng
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
-  // 3. Kích hoạt hệ thống lắng nghe thông báo toàn cục
-  // Phải gọi trước runApp để thiết lập MethodChannel ngay khi Engine khởi động
   await NotificationService.initialize();
 
   runApp(const ExpenseTrackerApp());
@@ -40,6 +37,16 @@ class ExpenseTrackerApp extends StatelessWidget {
       title: 'Quản Lý Chi Tiêu',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      // ── Localization cho DatePicker ──
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('vi', 'VN'),
+        Locale('en', 'US'),
+      ],
       home: const SplashScreen(),
     );
   }
@@ -49,7 +56,8 @@ class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<SplashScreen> createState() =>
+      _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
@@ -60,19 +68,29 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkUser() async {
-    // Chờ 1 giây để hiển thị logo splash
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(
+        const Duration(milliseconds: 800));
     if (!mounted) return;
 
-    // Kiểm tra xem người dùng đã đăng nhập/đăng ký chưa
     final hasUser = await UserService.hasUser();
     if (!mounted) return;
 
+    if (hasUser) {
+      if (FirebaseAuth.instance.currentUser == null) {
+        try {
+          await FirebaseAuth.instance
+              .signInAnonymously();
+        } catch (_) {}
+      }
+    }
+
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            hasUser ? const HomeScreen() : const OnboardingScreen(),
+        builder: (_) => hasUser
+            ? const HomeScreen()
+            : const OnboardingScreen(),
       ),
     );
   }
@@ -87,9 +105,12 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             Text('💰', style: TextStyle(fontSize: 80)),
             SizedBox(height: AppSpacing.md),
-            Text('Quản Lý Chi Tiêu', style: AppTextStyles.heading2),
+            Text('Quản Lý Chi Tiêu',
+                style: AppTextStyles.heading2),
             SizedBox(height: AppSpacing.lg),
-            CircularProgressIndicator(),
+            CircularProgressIndicator(
+              color: AppColors.primary,
+            ),
           ],
         ),
       ),
