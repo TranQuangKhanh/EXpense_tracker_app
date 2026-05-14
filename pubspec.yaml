@@ -1,5 +1,5 @@
-name: expense_tracker
-description: "A new Flutter project."
+name: zoowallet
+description: "ZooWallet - Quản lý chi tiêu thông minh"
 publish_to: "none"
 
 version: 1.0.0+1
@@ -22,9 +22,21 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1 # ← THÊM
+
+# ← THÊM block này, nằm ngoài flutter: section
+# ← SỬA tên block (bỏ flutter_icons, dùng flutter_launcher_icons)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/zoowallet_icon.png"
+  adaptive_icon_background: "#F5A623"
+  adaptive_icon_foreground: "assets/icon/zoowallet_icon.png"
+  remove_alpha_ios: true # ← THÊM để bỏ warning iOS
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/banks/
+    - assets/icon/ # ← THÊM

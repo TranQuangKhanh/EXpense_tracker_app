@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
     <application
-        android:label="Quản Lý Chi Tiêu"
+        android:label="ZooWallet"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

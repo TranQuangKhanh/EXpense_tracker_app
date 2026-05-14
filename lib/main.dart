@@ -34,7 +34,7 @@ class ExpenseTrackerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Quản Lý Chi Tiêu',
+      title: 'ZooWallet',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       // ── Localization cho DatePicker ──
@@ -105,7 +105,7 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             Text('💰', style: TextStyle(fontSize: 80)),
             SizedBox(height: AppSpacing.md),
-            Text('Quản Lý Chi Tiêu',
+            Text('ZooWallet',
                 style: AppTextStyles.heading2),
             SizedBox(height: AppSpacing.lg),
             CircularProgressIndicator(
