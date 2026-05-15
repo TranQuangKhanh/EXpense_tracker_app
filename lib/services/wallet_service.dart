@@ -72,4 +72,22 @@ class WalletService {
       debugPrint('Lỗi cập nhật số dư: $e');
     }
   }
+
+  // ← THÊM: tìm wallet theo bankName
+  static Future<WalletModel?> findWalletByBankName(
+      String userId, String bankName) async {
+    try {
+      final snap = await _db
+          .collection('wallets')
+          .where('userId', isEqualTo: userId)
+          .where('name', isEqualTo: bankName)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return WalletModel.fromDoc(snap.docs.first);
+    } catch (e) {
+      debugPrint('Lỗi tìm ví: $e');
+      return null;
+    }
+  }
 }

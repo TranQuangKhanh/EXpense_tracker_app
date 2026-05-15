@@ -3,10 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/constants/app_constants.dart';
 import '../models/transaction_model.dart';
+import '../models/wallet_model.dart';
 import '../models/category_model.dart';
 import '../models/custom_category_model.dart';
 import '../services/category_service.dart';
 import '../services/user_service.dart';
+import '../services/wallet_service.dart';
 import '../widgets/common/empty_state.dart';
 import '../widgets/common/sky_loader.dart';
 
@@ -43,8 +45,13 @@ class _PendingScreenState
     }
   }
 
+  // ── Confirm + tự động update wallet ────────
   Future<void> _confirmTransaction(
-      String docId, String categoryId) async {
+      String docId,
+      String categoryId, {
+      TransactionModel? transaction,
+  }) async {
+    // Update status + category
     await FirebaseFirestore.instance
         .collection('expenses')
         .doc(docId)
@@ -52,10 +59,241 @@ class _PendingScreenState
       'status': 'confirmed',
       'categoryId': categoryId,
     });
+
+    // Tự động tìm wallet theo bankName
+    if (transaction != null &&
+        transaction.bankName != null &&
+        _userId != null) {
+      final wallet =
+          await WalletService.findWalletByBankName(
+        _userId!,
+        transaction.bankName!,
+      );
+
+      if (wallet != null) {
+        // Update balance
+        await WalletService.updateBalance(
+          walletId: wallet.id,
+          amount: transaction.amount,
+          isIncome: transaction.isIncome,
+        );
+        // Gắn walletId vào expense
+        await FirebaseFirestore.instance
+            .collection('expenses')
+            .doc(docId)
+            .update({
+          'walletId': wallet.id,
+          'walletName': wallet.name,
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Đã xác nhận và cập nhật ví ${wallet.name}',
+            ),
+            action: SnackBarAction(
+              label: 'Đổi ví',
+              onPressed: () =>
+                  _showWalletPicker(docId, transaction),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    // Không tìm được wallet → vẫn confirm bình thường
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('✅ Đã xác nhận giao dịch')),
+      SnackBar(
+        content: const Text('Đã xác nhận giao dịch'),
+        action: transaction != null
+            ? SnackBarAction(
+                label: 'Chọn ví',
+                onPressed: () =>
+                    _showWalletPicker(docId, transaction),
+              )
+            : null,
+      ),
+    );
+  }
+
+  // ── Cho user chọn/đổi ví sau khi confirm ───
+  void _showWalletPicker(
+      String docId, TransactionModel transaction) {
+    if (_userId == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.xxl),
+          ),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius:
+                    BorderRadius.circular(AppRadius.round),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Chọn nguồn tiền',
+              style: AppTextStyles.heading3,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Giao dịch sẽ được cộng/trừ vào ví bạn chọn',
+              style: AppTextStyles.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            StreamBuilder<List<WalletModel>>(
+              stream: WalletService.getUserWallets(
+                  _userId!),
+              builder: (context, snapshot) {
+                final wallets = snapshot.data ?? [];
+                if (wallets.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(
+                        AppSpacing.lg),
+                    child: Text(
+                      'Chưa có ví nào. Hãy tạo ví trước.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                  );
+                }
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...wallets.map((wallet) =>
+                        ListTile(
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            padding:
+                                const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(
+                                      AppRadius.md),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black
+                                      .withOpacity(0.08),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: _buildBankLogo(
+                                wallet.name,
+                                size: 28),
+                          ),
+                          title: Text(
+                            wallet.name,
+                            style: const TextStyle(
+                                fontWeight:
+                                    FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            '${transaction.isIncome ? '+' : '-'}${_formatAmount(transaction.amount)} đ',
+                            style: TextStyle(
+                              color: transaction.isIncome
+                                  ? AppColors.income
+                                  : AppColors.expense,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            // Hoàn tác balance ví cũ nếu có
+                            if (transaction.walletId !=
+                                    null &&
+                                transaction.walletId!
+                                    .isNotEmpty &&
+                                transaction.walletId !=
+                                    wallet.id) {
+                              await WalletService
+                                  .updateBalance(
+                                walletId:
+                                    transaction.walletId!,
+                                amount: transaction.amount,
+                                isIncome:
+                                    !transaction.isIncome,
+                              );
+                            }
+                            // Update ví mới
+                            await WalletService
+                                .updateBalance(
+                              walletId: wallet.id,
+                              amount: transaction.amount,
+                              isIncome: transaction.isIncome,
+                            );
+                            await FirebaseFirestore
+                                .instance
+                                .collection('expenses')
+                                .doc(docId)
+                                .update({
+                              'walletId': wallet.id,
+                              'walletName': wallet.name,
+                            });
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Đã cập nhật ví ${wallet.name}',
+                                ),
+                              ),
+                            );
+                          },
+                        )),
+                    // Option bỏ qua
+                    ListTile(
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius:
+                              BorderRadius.circular(
+                                  AppRadius.md),
+                        ),
+                        child: const Icon(
+                          Icons.block_rounded,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      title: const Text(
+                        'Không cập nhật ví',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      onTap: () =>
+                          Navigator.pop(context),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
     );
   }
 
@@ -67,7 +305,6 @@ class _PendingScreenState
         .delete();
   }
 
-  // Map bankName → asset path
   static const _bankLogos = {
     'MoMo': 'assets/banks/momo.png',
     'Vietcombank': 'assets/banks/vcb.png',
@@ -123,7 +360,7 @@ class _PendingScreenState
         child: Text(
           bankName.isNotEmpty
               ? bankName[0].toUpperCase()
-              : '🏦',
+              : '?',
           style: TextStyle(
             fontSize: size * 0.5,
             fontWeight: FontWeight.w800,
@@ -147,8 +384,7 @@ class _PendingScreenState
       builder: (context) => Container(
         constraints: BoxConstraints(
           maxHeight:
-              MediaQuery.of(context).size.height *
-                  0.75,
+              MediaQuery.of(context).size.height * 0.75,
         ),
         decoration: const BoxDecoration(
           color: AppColors.surface,
@@ -190,28 +426,26 @@ class _PendingScreenState
                           onTap: () {
                             Navigator.pop(context);
                             _confirmTransaction(
-                                transaction.id,
-                                cat.id);
+                              transaction.id,
+                              cat.id,
+                              transaction: transaction,
+                            );
                           },
                           child: Container(
                             padding: const EdgeInsets
                                 .symmetric(
-                              horizontal:
-                                  AppSpacing.md,
+                              horizontal: AppSpacing.md,
                               vertical: AppSpacing.sm,
                             ),
                             decoration: BoxDecoration(
                               color: cat.color
                                   .withOpacity(0.1),
                               borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                          AppRadius
-                                              .round),
+                                  BorderRadius.circular(
+                                      AppRadius.round),
                               border: Border.all(
                                   color: cat.color
-                                      .withOpacity(
-                                          0.4)),
+                                      .withOpacity(0.4)),
                             ),
                             child: Row(
                               mainAxisSize:
@@ -221,14 +455,12 @@ class _PendingScreenState
                                     color: cat.color,
                                     size: 16),
                                 const SizedBox(
-                                    width:
-                                        AppSpacing.xs),
+                                    width: AppSpacing.xs),
                                 Text(cat.name,
                                     style: TextStyle(
                                       color: cat.color,
                                       fontWeight:
-                                          FontWeight
-                                              .w600,
+                                          FontWeight.w600,
                                     )),
                               ],
                             ),
@@ -254,26 +486,24 @@ class _PendingScreenState
                             onTap: () {
                               Navigator.pop(context);
                               _confirmTransaction(
-                                  transaction.id,
-                                  cat.id);
+                                transaction.id,
+                                cat.id,
+                                transaction: transaction,
+                              );
                             },
                             child: Container(
                               padding: const EdgeInsets
                                   .symmetric(
                                 horizontal:
                                     AppSpacing.md,
-                                vertical:
-                                    AppSpacing.sm,
+                                vertical: AppSpacing.sm,
                               ),
-                              decoration:
-                                  BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: AppColors
                                     .primaryLight,
                                 borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                            AppRadius
-                                                .round),
+                                    BorderRadius.circular(
+                                        AppRadius.round),
                                 border: Border.all(
                                     color: AppColors
                                         .primary
@@ -286,8 +516,8 @@ class _PendingScreenState
                                 children: [
                                   Text(cat.emoji),
                                   const SizedBox(
-                                      width: AppSpacing
-                                          .xs),
+                                      width:
+                                          AppSpacing.xs),
                                   Text(cat.name,
                                       style:
                                           const TextStyle(
@@ -332,15 +562,7 @@ class _PendingScreenState
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text('🔔',
-                style: TextStyle(fontSize: 20)),
-            SizedBox(width: AppSpacing.sm),
-            Text('Chờ xác nhận'),
-          ],
-        ),
+        title: const Text('Chờ xác nhận'),
       ),
       body: StreamBuilder<User?>(
         stream:
@@ -383,8 +605,9 @@ class _PendingScreenState
                   if (!snapshot.hasData ||
                       snapshot.data!.docs.isEmpty) {
                     return const EmptyState(
-                      title:
-                          'Không có giao dịch chờ',
+                      icon: Icons
+                          .check_circle_outline_rounded,
+                      title: 'Không có giao dịch chờ',
                       subtitle:
                           'Tất cả giao dịch đã được xác nhận',
                     );
@@ -427,7 +650,6 @@ class _PendingScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header bank — dùng logo thật
         Container(
           margin: const EdgeInsets.only(
               bottom: AppSpacing.sm),
@@ -437,8 +659,8 @@ class _PendingScreenState
           ),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(
-                AppRadius.xl),
+            borderRadius:
+                BorderRadius.circular(AppRadius.xl),
             boxShadow: [
               BoxShadow(
                 color:
@@ -449,7 +671,6 @@ class _PendingScreenState
           ),
           child: Row(
             children: [
-              // Logo ngân hàng
               Container(
                 width: 36,
                 height: 36,
@@ -457,18 +678,17 @@ class _PendingScreenState
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius:
-                      BorderRadius.circular(
-                          AppRadius.md),
+                      BorderRadius.circular(AppRadius.md),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black
-                          .withOpacity(0.08),
+                      color:
+                          Colors.black.withOpacity(0.08),
                       blurRadius: 4,
                     ),
                   ],
                 ),
-                child: _buildBankLogo(bankName,
-                    size: 28),
+                child:
+                    _buildBankLogo(bankName, size: 28),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -489,8 +709,7 @@ class _PendingScreenState
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius:
-                      BorderRadius.circular(
-                          AppRadius.round),
+                      BorderRadius.circular(AppRadius.round),
                 ),
                 child: Text(
                   '${transactions.length} giao dịch',
@@ -515,8 +734,7 @@ class _PendingScreenState
     final suggestedCat =
         AppCategories.findById(t.categoryId);
     final mascot =
-        AppMascots.categoryIcons[t.categoryId] ??
-            '💸';
+        AppMascots.categoryIcons[t.categoryId] ?? '💸';
 
     return Container(
       margin: const EdgeInsets.only(
@@ -536,8 +754,7 @@ class _PendingScreenState
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -549,8 +766,7 @@ class _PendingScreenState
                         ? AppColors.incomeLight
                         : AppColors.expenseLight,
                     borderRadius:
-                        BorderRadius.circular(
-                            AppRadius.md),
+                        BorderRadius.circular(AppRadius.md),
                   ),
                   child: Center(
                     child: Text(mascot,
@@ -576,39 +792,34 @@ class _PendingScreenState
                         Row(
                           children: [
                             const Text('Gợi ý: ',
-                                style: AppTextStyles
-                                    .caption),
+                                style:
+                                    AppTextStyles.caption),
                             Icon(suggestedCat.icon,
-                                color:
-                                    suggestedCat.color,
+                                color: suggestedCat.color,
                                 size: 12),
                             const SizedBox(width: 2),
                             Text(
                               suggestedCat.name,
                               style: TextStyle(
-                                color:
-                                    suggestedCat.color,
+                                color: suggestedCat.color,
                                 fontSize: 12,
-                                fontWeight:
-                                    FontWeight.w600,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
-                      // Hiển thị nguồn ngân hàng
                       if (t.bankName != null)
                         Row(
                           children: [
-                            _buildBankLogo(
-                                t.bankName!,
+                            _buildBankLogo(t.bankName!,
                                 size: 14),
                             const SizedBox(width: 4),
                             Text(
                               t.bankName!,
                               style: const TextStyle(
                                 fontSize: 11,
-                                color: AppColors
-                                    .textSecondary,
+                                color:
+                                    AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -636,16 +847,17 @@ class _PendingScreenState
                   child: ElevatedButton.icon(
                     onPressed: () =>
                         _confirmTransaction(
-                            t.id, t.categoryId),
+                      t.id,
+                      t.categoryId,
+                      transaction: t,   // ← THÊM
+                    ),
                     icon: const Icon(
-                        Icons.check_rounded,
-                        size: 16),
+                        Icons.check_rounded, size: 16),
                     label: const Text('Xác nhận'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.income,
-                      padding:
-                          const EdgeInsets.symmetric(
-                              vertical: AppSpacing.sm),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.sm),
                     ),
                   ),
                 ),
@@ -656,13 +868,11 @@ class _PendingScreenState
                     onPressed: () =>
                         _showCategoryPicker(t),
                     icon: const Icon(
-                        Icons.edit_rounded,
-                        size: 16),
+                        Icons.edit_rounded, size: 16),
                     label: const Text('Đổi danh mục'),
                     style: OutlinedButton.styleFrom(
-                      padding:
-                          const EdgeInsets.symmetric(
-                              vertical: AppSpacing.sm),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.sm),
                     ),
                   ),
                 ),
@@ -670,8 +880,8 @@ class _PendingScreenState
                 IconButton(
                   icon: Icon(
                     Icons.delete_outline_rounded,
-                    color: AppColors.expense
-                        .withOpacity(0.6),
+                    color:
+                        AppColors.expense.withOpacity(0.6),
                   ),
                   onPressed: () =>
                       _deleteTransaction(t.id),
