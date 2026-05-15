@@ -28,7 +28,6 @@ class _TransactionListState
   List<CustomCategoryModel> _customCategories = [];
   String? _userId;
 
-  // Map bankName → asset path
   static const _bankLogos = {
     'MoMo': 'assets/banks/momo.png',
     'Vietcombank': 'assets/banks/vcb.png',
@@ -104,8 +103,39 @@ class _TransactionListState
     });
   }
 
+  // ← Confirm dialog trước khi xoá
   Future<void> _deleteTransaction(
       String docId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(AppRadius.xl),
+        ),
+        title: const Text('Xoá giao dịch'),
+        content: const Text(
+          'Bạn có chắc muốn xoá giao dịch này không? '
+          'Hành động này không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.expense,
+            ),
+            child: const Text('Xoá'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
     await FirebaseFirestore.instance
         .collection('expenses')
         .doc(docId)
@@ -131,8 +161,9 @@ class _TransactionListState
     if (defaultCat != null) {
       return {
         'name': defaultCat.name,
-        'emoji': AppMascots.categoryIcons[categoryId] ??
-            '💸',
+        'emoji':
+            AppMascots.categoryIcons[categoryId] ??
+                '💸',
       };
     }
     final customCat = _customCategories
@@ -277,7 +308,8 @@ class _TransactionListState
   Widget _buildMonthSelector(String userId) {
     return Container(
       margin: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
+          AppSpacing.md, AppSpacing.md,
+          AppSpacing.md, 0),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
         vertical: AppSpacing.xs,
@@ -349,8 +381,8 @@ class _TransactionListState
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text('🔔',
-                          style:
-                              TextStyle(fontSize: 12)),
+                          style: TextStyle(
+                              fontSize: 12)),
                       const SizedBox(width: 4),
                       Text(
                         '$count',
@@ -529,8 +561,23 @@ class _TransactionListState
         ),
         child: Column(
           children: [
-            const Text('🦊',
-                style: TextStyle(fontSize: 56)),
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/mascots/fox.png',
+                  width: 56,
+                  height: 56,
+                ),
+                const SizedBox(width: 8),
+                Image.asset(
+                  'assets/mascots/cat.png',
+                  width: 56,
+                  height: 56,
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.md),
             const Text('Chưa có giao dịch',
                 style: AppTextStyles.heading3),
@@ -666,6 +713,40 @@ class _TransactionListState
     return Dismissible(
       key: Key(t.id),
       direction: DismissDirection.endToStart,
+      // ← Confirm trước khi xoá bằng swipe
+      confirmDismiss: (_) async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(AppRadius.xl),
+            ),
+            title: const Text('Xoá giao dịch'),
+            content: const Text(
+              'Bạn có chắc muốn xoá giao dịch này không?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, false),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.expense,
+                ),
+                child: const Text('Xoá'),
+              ),
+            ],
+          ),
+        );
+        return confirm == true;
+      },
+      onDismissed: (_) =>
+          _deleteTransaction(t.id),
       background: Container(
         margin: const EdgeInsets.only(
             bottom: AppSpacing.sm),
@@ -680,7 +761,6 @@ class _TransactionListState
         child: const Icon(Icons.delete_rounded,
             color: Colors.white),
       ),
-      onDismissed: (_) => _deleteTransaction(t.id),
       child: GestureDetector(
         onLongPress: () =>
             _showTransactionOptions(t),
@@ -764,7 +844,6 @@ class _TransactionListState
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Badge Auto + logo ngân hàng
                 if (t.isAuto && t.bankName != null)
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -773,8 +852,8 @@ class _TransactionListState
                       Container(
                         width: 18,
                         height: 18,
-                        padding: const EdgeInsets
-                            .all(2),
+                        padding:
+                            const EdgeInsets.all(2),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius:
@@ -797,7 +876,8 @@ class _TransactionListState
                   Container(
                     padding:
                         const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2),
                     decoration: BoxDecoration(
                       color: AppColors.primaryLight,
                       borderRadius:
@@ -928,6 +1008,7 @@ class _TransactionListState
               subtitle: const Text(
                   'Không thể hoàn tác',
                   style: AppTextStyles.caption),
+              // ← Confirm trước khi xoá
               onTap: () {
                 Navigator.pop(context);
                 _deleteTransaction(t.id);
@@ -1033,10 +1114,9 @@ class _TransactionListState
                             if (mounted) {
                               ScaffoldMessenger.of(
                                       context)
-                                  .showSnackBar(
-                                      SnackBar(
+                                  .showSnackBar(SnackBar(
                                 content: Text(
-                                    '✅ Đổi sang ${cat.name}'),
+                                    'Đổi sang ${cat.name}'),
                                 backgroundColor:
                                     AppColors.income,
                               ));
@@ -1053,8 +1133,7 @@ class _TransactionListState
                               color: isSelected
                                   ? cat.color
                                       .withOpacity(0.15)
-                                  : AppColors
-                                      .background,
+                                  : AppColors.background,
                               borderRadius:
                                   BorderRadius.circular(
                                       AppRadius.round),
@@ -1079,8 +1158,7 @@ class _TransactionListState
                                           : AppColors
                                               .textPrimary,
                                       fontWeight:
-                                          FontWeight
-                                              .w600,
+                                          FontWeight.w600,
                                       fontSize: 13,
                                     )),
                               ],
@@ -1122,7 +1200,7 @@ class _TransactionListState
                                     .showSnackBar(
                                         SnackBar(
                                   content: Text(
-                                      '✅ Đổi sang ${cat.name}'),
+                                      'Đổi sang ${cat.name}'),
                                   backgroundColor:
                                       AppColors.income,
                                 ));
@@ -1136,8 +1214,7 @@ class _TransactionListState
                                 vertical:
                                     AppSpacing.sm,
                               ),
-                              decoration:
-                                  BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: isSelected
                                     ? AppColors
                                         .primaryLight
@@ -1150,8 +1227,7 @@ class _TransactionListState
                                                 .round),
                                 border: Border.all(
                                   color: isSelected
-                                      ? AppColors
-                                          .primary
+                                      ? AppColors.primary
                                       : Colors
                                           .transparent,
                                   width: 2,
