@@ -103,9 +103,30 @@ class _TransactionListState
     });
   }
 
-  // ← Confirm dialog trước khi xoá
+  // ── Hoàn tác balance khi xoá giao dịch ──
+  Future<void> _revertWalletBalance(
+      TransactionModel t) async {
+    if (t.walletId == null ||
+        t.walletId!.isEmpty) return;
+    try {
+      final delta =
+          t.isIncome ? -t.amount : t.amount;
+      await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(t.walletId!)
+          .update({
+        'balance': FieldValue.increment(delta),
+      });
+    } catch (e) {
+      debugPrint('Lỗi hoàn tác balance: $e');
+    }
+  }
+
+  // ── Confirm dialog + hoàn tác balance ────
   Future<void> _deleteTransaction(
-      String docId) async {
+      String docId, {
+      TransactionModel? transaction,
+  }) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -136,6 +157,9 @@ class _TransactionListState
       ),
     );
     if (confirm != true) return;
+    if (transaction != null) {
+      await _revertWalletBalance(transaction);
+    }
     await FirebaseFirestore.instance
         .collection('expenses')
         .doc(docId)
@@ -183,7 +207,8 @@ class _TransactionListState
     final firstDay =
         DateTime(_selectedYear, _selectedMonth, 1);
     final lastDay = DateTime(
-        _selectedYear, _selectedMonth + 1, 0, 23, 59, 59);
+        _selectedYear, _selectedMonth + 1,
+        0, 23, 59, 59);
 
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
@@ -372,7 +397,8 @@ class _TransactionListState
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: AppColors.gradientRose),
+                        colors:
+                            AppColors.gradientRose),
                     borderRadius:
                         BorderRadius.circular(
                             AppRadius.round),
@@ -713,7 +739,6 @@ class _TransactionListState
     return Dismissible(
       key: Key(t.id),
       direction: DismissDirection.endToStart,
-      // ← Confirm trước khi xoá bằng swipe
       confirmDismiss: (_) async {
         final confirm = await showDialog<bool>(
           context: context,
@@ -743,10 +768,16 @@ class _TransactionListState
             ],
           ),
         );
-        return confirm == true;
+        return confirm ?? false;
       },
-      onDismissed: (_) =>
-          _deleteTransaction(t.id),
+      // ← Hoàn tác balance + xoá
+      onDismissed: (_) async {
+        await _revertWalletBalance(t);
+        await FirebaseFirestore.instance
+            .collection('expenses')
+            .doc(t.id)
+            .delete();
+      },
       background: Container(
         margin: const EdgeInsets.only(
             bottom: AppSpacing.sm),
@@ -1008,10 +1039,11 @@ class _TransactionListState
               subtitle: const Text(
                   'Không thể hoàn tác',
                   style: AppTextStyles.caption),
-              // ← Confirm trước khi xoá
               onTap: () {
                 Navigator.pop(context);
-                _deleteTransaction(t.id);
+                // ← truyền transaction để hoàn tác balance
+                _deleteTransaction(
+                    t.id, transaction: t);
               },
             ),
             const SizedBox(height: AppSpacing.sm),
