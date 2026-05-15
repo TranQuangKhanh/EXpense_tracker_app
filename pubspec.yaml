@@ -39,4 +39,5 @@ flutter:
 
   assets:
     - assets/banks/
-    - assets/icon/ # ← THÊM
+    - assets/icon/
+    - assets/mascots/

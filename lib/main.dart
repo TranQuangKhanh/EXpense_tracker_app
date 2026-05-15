@@ -37,7 +37,6 @@ class ExpenseTrackerApp extends StatelessWidget {
       title: 'ZooWallet',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      // ── Localization cho DatePicker ──
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -60,16 +59,61 @@ class SplashScreen extends StatefulWidget {
       _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState
+    extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+
+  late AnimationController _controller;
+  late Animation<double> _foxAnim;
+  late Animation<double> _catAnim;
+  late Animation<double> _fadeAnim;
+
   @override
   void initState() {
     super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    // Con mèo chạy từ phải vào giữa
+    _catAnim = Tween<double>(begin: 1.5, end: 0.0)
+        .animate(CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.6,
+          curve: Curves.easeOut),
+    ));
+
+    // Con cáo chạy theo sau
+    _foxAnim = Tween<double>(begin: 2.0, end: 0.3)
+        .animate(CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.1, 0.7,
+          curve: Curves.easeOut),
+    ));
+
+    // Text fade in
+    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0)
+        .animate(CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.6, 1.0,
+          curve: Curves.easeIn),
+    ));
+
+    _controller.forward();
     _checkUser();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _checkUser() async {
     await Future.delayed(
-        const Duration(milliseconds: 800));
+        const Duration(milliseconds: 1800));
     if (!mounted) return;
 
     final hasUser = await UserService.hasUser();
@@ -97,19 +141,82 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final w = MediaQuery.of(context).size.width;
+
+    return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('💰', style: TextStyle(fontSize: 80)),
-            SizedBox(height: AppSpacing.md),
-            Text('ZooWallet',
-                style: AppTextStyles.heading2),
-            SizedBox(height: AppSpacing.lg),
-            CircularProgressIndicator(
-              color: AppColors.primary,
+            // ── Mascot animation ──
+            SizedBox(
+              height: 140,
+              width: double.infinity,
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Con mèo (chạy trước)
+                      Positioned(
+                        left: w * 0.5 +
+                            _catAnim.value * w * 0.5 -
+                            50,
+                        bottom: 10,
+                        child: Image.asset(
+                          'assets/mascots/cat.png',
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      // Con cáo (đuổi theo)
+                      Positioned(
+                        left: w * 0.5 +
+                            _foxAnim.value * w * 0.5 -
+                            50,
+                        bottom: 10,
+                        child: Image.asset(
+                          'assets/mascots/fox.png',
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // ── App name fade in ──
+            AnimatedBuilder(
+              animation: _fadeAnim,
+              builder: (context, child) => Opacity(
+                opacity: _fadeAnim.value,
+                child: child,
+              ),
+              child: const Text(
+                'ZooWallet',
+                style: AppTextStyles.heading2,
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            AnimatedBuilder(
+              animation: _fadeAnim,
+              builder: (context, child) => Opacity(
+                opacity: _fadeAnim.value,
+                child: child,
+              ),
+              child: const CircularProgressIndicator(
+                color: AppColors.primary,
+              ),
             ),
           ],
         ),
